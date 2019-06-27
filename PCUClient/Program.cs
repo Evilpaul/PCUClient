@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Peak.Can.Uds;
 
 using TPCANHandle = System.UInt16;
@@ -25,7 +21,7 @@ namespace PCUClient
         private static readonly byte N_RA = ((byte)0x00);
 
         // console handling
-        private static readonly bool USE_GETCH = false;
+        private static readonly bool USE_GETCH = true;
 
         // A simple function that waits for user input
         static void waitGetch(string pMsg = null)
@@ -43,46 +39,30 @@ namespace PCUClient
         }
 
         // A function that displays UDS Request and Response messages (and count error if no response)
-        static void displayMessage(TPUDSMsg* Request, TPUDSMsg* Response, bool noResponseExpected = false)
+        static void displayMessage(TPUDSMsg Request, TPUDSMsg Response, bool noResponseExpected = false)
         {
-            char[] buffer = new char[500];
-
-            if (Request != NULL)
+            if (Request.Equals(default(TPUDSMsg)))
             {
-                printf("\nUDS request from 0x%02x (to 0x%02x, with RA 0x%02x) - result: %i - %s\n",
-                    (int)Request->NETADDRINFO.SA,
-                    (int)Request->NETADDRINFO.TA,
-                    (int)Request->NETADDRINFO.RA,
-                    (int)Request->RESULT,
-                    Request->RESULT != PUDS_RESULT_N_OK ? "ERROR !!!" : "OK !");
+                string result = Request.RESULT != TPUDSResult.PUDS_RESULT_N_OK ? "ERROR !!!" : "OK!";
+                Console.Write($"\nUDS request from 0x{Request.NETADDRINFO.SA:x2} (to 0x{Request.NETADDRINFO.TA:x2}, with RA 0x{Request.NETADDRINFO.RA:x2}) - result: {Request.RESULT} - {result}\n");
                 // display data
-                setvbuf(stdout, buffer, _IOLBF, BUFSIZ);
-                printf("\t\\-> Length: %i, Data= ", (int)Request->LEN);
-                for (int i = 0; i < Request->LEN; i++)
+                Console.Write($"\t\\-> Length: {Request.LEN}, Data= ");
+                for (int i = 0; i < Request.LEN; i++)
                 {
-                    printf("%02x ", (int)Request->DATA.RAW[i]);
-                    fflush(stdout);
+                    Console.Write($"{Request.DATA[i]:x2} ");
                 }
-                setvbuf(stdout, NULL, _IONBF, 0);
             }
-            if (Response != NULL)
+            if (Response.Equals(default(TPUDSMsg)))
             {
-                printf("\nUDS RESPONSE from 0x%02x (to 0x%02x, with RA 0x%02x) - result: %i - %s\n",
-                    (int)Response->NETADDRINFO.SA,
-                    (int)Response->NETADDRINFO.TA,
-                    (int)Response->NETADDRINFO.RA,
-                    (int)Response->RESULT,
-                    Response->RESULT != PUDS_RESULT_N_OK ? "ERROR !!!" : "OK !");
+                string result = Response.RESULT != TPUDSResult.PUDS_RESULT_N_OK ? "ERROR !!!" : "OK!";
+                Console.Write($"\nUDS RESPONSE from 0x{Response.NETADDRINFO.SA:x2} (to 0x{Response.NETADDRINFO.TA:x2}, with RA 0x{Response.NETADDRINFO.RA:x2}) - result: {Response.RESULT} - {result}\n");
                 // display data
-                setvbuf(stdout, buffer, _IOLBF, BUFSIZ);
-                printf("\t\\-> Length: %i, Data= ", (int)Response->LEN);
-                for (int i = 0; i < Response->LEN; i++)
+                Console.Write($"\t\\-> Length: {Response.LEN}, Data= ");
+                for (int i = 0; i < Response.LEN; i++)
                 {
-                    printf("%02x ", (int)Response->DATA.RAW[i]);
-                    fflush(stdout);
+                    Console.Write($"{Response.DATA[i]:x2} ");
                 }
                 Console.Write("\n");
-                setvbuf(stdout, NULL, _IONBF, 0);
             }
             else if (!noResponseExpected)
             {
@@ -105,6 +85,7 @@ namespace PCUClient
             TPUDSSessionInfo lSessionInfo = new TPUDSSessionInfo();
             TPUDSMsg Message = new TPUDSMsg();
             TPUDSMsg MessageResponse = new TPUDSMsg();
+            TPUDSMsg MessageReq = new TPUDSMsg();
 
             // initialization
             Message.NETADDRINFO = N_AI;
@@ -117,57 +98,48 @@ namespace PCUClient
             // Read default session information 
             //  Server is not yet known (Status will be PUDS_ERROR_NOT_INITIALIZED)
             //	yet the API will still set lSessionInfo to default values
-            Status = UDS_GetValue(Channel, PUDS_PARAM_SESSION_INFO, &lSessionInfo, sizeof(lSessionInfo));
-            printf("  Diagnostic Session Information: %i, 0x%02x => %d = [%04x; %04x]\n",
-                Status,
-                lSessionInfo.NETADDRINFO.TA,
-                lSessionInfo.SESSION_TYPE,
-                lSessionInfo.TIMEOUT_P2CAN_SERVER_MAX,
-                lSessionInfo.TIMEOUT_ENHANCED_P2CAN_SERVER_MAX);
+            IntPtr iptr = Marshal.AllocHGlobal(Marshal.SizeOf(lSessionInfo));
+            Marshal.StructureToPtr(lSessionInfo, iptr, false);
+            Status = UDSApi.GetValue(Channel, TPUDSParameter.PUDS_PARAM_SESSION_INFO, iptr, (uint)Marshal.SizeOf(lSessionInfo));
+            Console.Write($"  Diagnostic Session Information: {Status}, 0x{lSessionInfo.NETADDRINFO.TA:x2} => {lSessionInfo.SESSION_TYPE} = [{lSessionInfo.TIMEOUT_P2CAN_SERVER_MAX:x4}; {lSessionInfo.TIMEOUT_ENHANCED_P2CAN_SERVER_MAX:x4}]\n");
             waitGetch();
 
             // Set Diagnostic session to DEFAULT (to get session information)
             Console.Write("\n\nSetting a DEFAULT Diagnostic Session :\n");
-            Status = UDS_SvcDiagnosticSessionControl(Channel, &Message, PUDS_SVC_PARAM_DSC_DS);
-            if (Status == PUDS_ERROR_OK)
-                Status = UDS_WaitForService(Channel, &MessageResponse, &Message);
-            printf("  UDS_SvcDiagnosticSessionControl: %i\n", (int)Status);
-            if (Status == PUDS_ERROR_OK)
-                displayMessage(&Message, &MessageResponse);
+            Status = UDSApi.SvcDiagnosticSessionControl(Channel, ref Message, UDSApi.TPUDSSvcParamDSC.PUDS_SVC_PARAM_DSC_DS);
+            if (Status == TPUDSStatus.PUDS_ERROR_OK)
+                Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
+            Console.Write($"  UDS_SvcDiagnosticSessionControl: {Status}\n");
+            if (Status == TPUDSStatus.PUDS_ERROR_OK)
+                displayMessage(Message, MessageResponse);
             else
-                displayMessage(&Message, NULL);
+                displayMessage(Message, new TPUDSMsg());
             // Read current session information
-            memset(&lSessionInfo, 0, sizeof(lSessionInfo));
+            lSessionInfo = new TPUDSSessionInfo();
             lSessionInfo.NETADDRINFO = N_AI;
-            Status = UDS_GetValue(Channel, PUDS_PARAM_SESSION_INFO, &lSessionInfo, sizeof(lSessionInfo));
-            printf("  Diagnostic Session Information: %i, 0x%02x => %d = [%04x; %04x]\n",
-                Status,
-                lSessionInfo.NETADDRINFO.TA,
-                lSessionInfo.SESSION_TYPE,
-                lSessionInfo.TIMEOUT_P2CAN_SERVER_MAX,
-                lSessionInfo.TIMEOUT_ENHANCED_P2CAN_SERVER_MAX);
+            iptr = Marshal.AllocHGlobal(Marshal.SizeOf(lSessionInfo));
+            Marshal.StructureToPtr(lSessionInfo, iptr, false);
+            Status = UDSApi.GetValue(Channel, TPUDSParameter.PUDS_PARAM_SESSION_INFO, iptr, (uint)Marshal.SizeOf(lSessionInfo));
+            Console.Write($"  Diagnostic Session Information: {Status}, 0x{lSessionInfo.NETADDRINFO.TA:x2} => {lSessionInfo.SESSION_TYPE} = [{lSessionInfo.TIMEOUT_P2CAN_SERVER_MAX:x4}; {lSessionInfo.TIMEOUT_ENHANCED_P2CAN_SERVER_MAX:x4}]\n");
             waitGetch();
 
             // Set Diagnostic session to PROGRAMMING
             Console.Write("\n\nSetting a ECUPS Diagnostic Session :\n");
-            Status = UDS_SvcDiagnosticSessionControl(Channel, &Message, PUDS_SVC_PARAM_DSC_ECUPS);
-            if (Status == PUDS_ERROR_OK)
-                Status = UDS_WaitForService(Channel, &MessageResponse, &Message);
-            printf("  UDS_SvcDiagnosticSessionControl: %i\n", (int)Status);
-            if (Status == PUDS_ERROR_OK)
-                displayMessage(&Message, &MessageResponse);
+            Status = UDSApi.SvcDiagnosticSessionControl(Channel, ref Message, UDSApi.TPUDSSvcParamDSC.PUDS_SVC_PARAM_DSC_ECUPS);
+            if (Status == TPUDSStatus.PUDS_ERROR_OK)
+                Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
+            Console.Write($"  UDS_SvcDiagnosticSessionControl: {Status}\n");
+            if (Status == TPUDSStatus.PUDS_ERROR_OK)
+                displayMessage(Message, MessageResponse);
             else
-                displayMessage(&Message, NULL);
+                displayMessage(Message, new TPUDSMsg());
             // Read current session information
-            memset(&lSessionInfo, 0, sizeof(lSessionInfo));
+            lSessionInfo = new TPUDSSessionInfo();
             lSessionInfo.NETADDRINFO = N_AI;
-            Status = UDS_GetValue(Channel, PUDS_PARAM_SESSION_INFO, &lSessionInfo, sizeof(lSessionInfo));
-            printf("  Diagnostic Session Information: %i, 0x%02x => %d = [%04x; %04x]\n",
-                Status,
-                lSessionInfo.NETADDRINFO.TA,
-                lSessionInfo.SESSION_TYPE,
-                lSessionInfo.TIMEOUT_P2CAN_SERVER_MAX,
-                lSessionInfo.TIMEOUT_ENHANCED_P2CAN_SERVER_MAX);
+            iptr = Marshal.AllocHGlobal(Marshal.SizeOf(lSessionInfo));
+            Marshal.StructureToPtr(lSessionInfo, iptr, false);
+            Status = UDSApi.GetValue(Channel, TPUDSParameter.PUDS_PARAM_SESSION_INFO, iptr, (uint)Marshal.SizeOf(lSessionInfo));
+            Console.Write($"  Diagnostic Session Information: {Status}, 0x{lSessionInfo.NETADDRINFO.TA:x2} => {lSessionInfo.SESSION_TYPE} = [{lSessionInfo.TIMEOUT_P2CAN_SERVER_MAX:x4}; {lSessionInfo.TIMEOUT_ENHANCED_P2CAN_SERVER_MAX:x4}]\n");
             Console.Write(" Assert that Auto TesterPresent Frame is sent...\n");
             Thread.Sleep(2000);
             Console.Write("  Should transmit an Auto TesterPresent Frame\n");
@@ -176,15 +148,15 @@ namespace PCUClient
 
             waitGetch();
             // Set Diagnostic session back to DEFAULT
-            printf("\n\nSetting a DEFAULT Diagnostic Session :\n");
-            Status = UDS_SvcDiagnosticSessionControl(Channel, &Message, PUDS_SVC_PARAM_DSC_DS);
-            if (Status == PUDS_ERROR_OK)
-                Status = UDS_WaitForService(Channel, &MessageResponse, &Message);
-            printf("  UDS_SvcDiagnosticSessionControl: %i\n", (int)Status);
-            if (Status == PUDS_ERROR_OK)
-                displayMessage(&Message, &MessageResponse);
+            Console.Write("\n\nSetting a DEFAULT Diagnostic Session :\n");
+            Status = UDSApi.SvcDiagnosticSessionControl(Channel, ref Message, UDSApi.TPUDSSvcParamDSC.PUDS_SVC_PARAM_DSC_DS);
+            if (Status == TPUDSStatus.PUDS_ERROR_OK)
+                Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
+            Console.Write($"  UDS_SvcDiagnosticSessionControl: {Status}\n");
+            if (Status == TPUDSStatus.PUDS_ERROR_OK)
+                displayMessage(Message, MessageResponse);
             else
-                displayMessage(&Message, NULL);
+                displayMessage(Message, new TPUDSMsg());
             Console.Write(" Assert that NO Auto TesterPresent Frame is sent...\n");
             Thread.Sleep(2000);
             Console.Write("  Should NOT transmit an Auto TesterPresent Frame\n");
