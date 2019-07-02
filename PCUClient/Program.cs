@@ -38,12 +38,6 @@ namespace PCUClient
             }
         }
 
-        static ushort BodgeUshort(ushort did)
-        {
-            // swap bytes and then invert the bits...
-            return (ushort)~((ushort)((did << 8) | (did >> 8)));
-        }
-
         // A function that displays UDS Request and Response messages (and count error if no response)
         static void displayMessage(TPUDSMsg Request, TPUDSMsg Response, bool noResponseExpected = false)
         {
@@ -557,7 +551,7 @@ namespace PCUClient
 
             // Sends a Physical ReadScalingDataByIdentifier Message
             Console.Write("\n\nSends a Physical ReadScalingDataByIdentifier Message: \n");
-            Status = UDSApi.SvcReadScalingDataByIdentifier(Channel, ref Message, Environment.Is64BitProcess ? BodgeUshort((ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_BSFPDID) : (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_BSFPDID);
+            Status = UDSApi.SvcReadScalingDataByIdentifier(Channel, ref Message, (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_BSFPDID);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
             Console.Write($"  UDS_SvcReadScalingDataByIdentifier: {Status}\n");
@@ -623,12 +617,12 @@ namespace PCUClient
             Console.Write("\n\nSends a Physical DynamicallyDefineDataIdentifierDBID Message: \n");
             for (int i = 0; i < buffLen; i++)
             {
-                lBufferSourceDI[i] = Environment.Is64BitProcess ? BodgeUshort((ushort)(((0xF0 + i) << 8) + ('A' + i))) : (ushort)(((0xF0 + i) << 8) + ('A' + i));
+                lBufferSourceDI[i] = (ushort)(((0xF0 + i) << 8) + ('A' + i));
                 lBufferMemSize[i] = (byte)(i + 1);
                 lBufferPosInSrc[i] = (byte)(100 + i);
             }
             Status = UDSApi.SvcDynamicallyDefineDataIdentifierDBID(Channel, ref Message,
-                Environment.Is64BitProcess ? BodgeUshort((ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CDDID) : (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CDDID, lBufferSourceDI, lBufferMemSize, lBufferPosInSrc, buffLen);
+                (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CDDID, lBufferSourceDI, lBufferMemSize, lBufferPosInSrc, buffLen);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
             Console.Write($"  UDS_SvcDynamicallyDefineDataIdentifierDBID: {Status}\n");
@@ -657,7 +651,7 @@ namespace PCUClient
                 }
             }
             Status = UDSApi.SvcDynamicallyDefineDataIdentifierDBMA(Channel, ref Message,
-                Environment.Is64BitProcess ? BodgeUshort((ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CESWNDID) : (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CESWNDID, buffAddrLen, buffSizeLen, lBuffsAddr, lBuffsSize, buffLen);
+                (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CESWNDID, buffAddrLen, buffSizeLen, lBuffsAddr, lBuffsSize, buffLen);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
             Console.Write($"  UDS_SvcDynamicallyDefineDataIdentifierDBMA: {Status}\n");
@@ -669,7 +663,7 @@ namespace PCUClient
 
             // Sends a Physical UDS_SvcDynamicallyDefineDataIdentifierCDDDI Message
             Console.Write("\n\nSends a Physical UDS_SvcDynamicallyDefineDataIdentifierCDDDI Message: \n");
-            Status = UDSApi.SvcDynamicallyDefineDataIdentifierCDDDI(Channel, ref Message, Environment.Is64BitProcess ? BodgeUshort((ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CESWNDID) : (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CESWNDID);
+            Status = UDSApi.SvcDynamicallyDefineDataIdentifierCDDDI(Channel, ref Message, (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_CESWNDID);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
             Console.Write($"  UDS_SvcDynamicallyDefineDataIdentifierCDDDI: {Status}\n");
@@ -702,7 +696,7 @@ namespace PCUClient
             {
                 lBuffer[i] = (byte)('A' + i);
             }
-            Status = UDSApi.SvcWriteDataByIdentifier(Channel, ref Message, Environment.Is64BitProcess ? BodgeUshort((ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_ASFPDID) : (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_ASFPDID, lBuffer, buffLen);
+            Status = UDSApi.SvcWriteDataByIdentifier(Channel, ref Message, (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_ASFPDID, lBuffer, buffLen);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
             Console.Write($"  UDS_SvcWriteDataByIdentifier: {Status}\n");
@@ -906,7 +900,7 @@ namespace PCUClient
                 lBufferOption[i] = (byte)('A' + i);
                 lBufferEnableMask[i] = (byte)(10 + i);
             }
-            Status = UDSApi.SvcInputOutputControlByIdentifier(Channel, ref Message, Environment.Is64BitProcess ? BodgeUshort((ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_SSECUSWVNDID) : (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_SSECUSWVNDID,
+            Status = UDSApi.SvcInputOutputControlByIdentifier(Channel, ref Message, (ushort)UDSApi.TPUDSSvcParamDI.PUDS_SVC_PARAM_DI_SSECUSWVNDID,
                 lBufferOption, lBuffOptionLen, lBufferEnableMask, lBuffMaskLen);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
@@ -941,7 +935,7 @@ namespace PCUClient
                 lBuffer[i] = (byte)('A' + i);
             }
             Status = UDSApi.SvcRoutineControl(Channel, ref Message, UDSApi.TPUDSSvcParamRC.PUDS_SVC_PARAM_RC_RRR,
-                Environment.Is64BitProcess ? BodgeUshort((ushort)0xF1A2) : (ushort)0xF1A2, lBuffer, lBuffLen);
+                0xF1A2, lBuffer, lBuffLen);
             if (Status == TPUDSStatus.PUDS_ERROR_OK)
                 Status = UDSApi.WaitForService(Channel, out MessageResponse, ref Message, out MessageReq);
             Console.Write($"  UDS_SvcRoutineControl: {Status}\n");
