@@ -41,7 +41,7 @@ namespace PCUClient
         // A function that displays UDS Request and Response messages (and count error if no response)
         static void displayMessage(TPUDSMsg Request, TPUDSMsg Response, bool noResponseExpected = false)
         {
-//            if (Request.Equals(default(TPUDSMsg)))
+            if (!Request.Equals(default(TPUDSMsg)))
             {
                 string result = Request.RESULT != TPUDSResult.PUDS_RESULT_N_OK ? "ERROR !!!" : "OK!";
                 Console.Write($"\nUDS request from 0x{Request.NETADDRINFO.SA:x2} (to 0x{Request.NETADDRINFO.TA:x2}, with RA 0x{Request.NETADDRINFO.RA:x2}) - result: {Request.RESULT} - {result}\n");
@@ -52,7 +52,7 @@ namespace PCUClient
                     Console.Write($"{Request.DATA[i]:x2} ");
                 }
             }
-//            if (Response.Equals(default(TPUDSMsg)))
+            if (!Response.Equals(default(TPUDSMsg)))
             {
                 string result = Response.RESULT != TPUDSResult.PUDS_RESULT_N_OK ? "ERROR !!!" : "OK!";
                 Console.Write($"\nUDS RESPONSE from 0x{Response.NETADDRINFO.SA:x2} (to 0x{Response.NETADDRINFO.TA:x2}, with RA 0x{Response.NETADDRINFO.RA:x2}) - result: {Response.RESULT} - {result}\n");
@@ -64,11 +64,11 @@ namespace PCUClient
                 }
                 Console.Write("\n");
             }
-//            else if (!noResponseExpected)
-//            {
-//                Console.Write("\n /!\\ ERROR : NO UDS RESPONSE !!\n\n");
-//                g_nbErr++;
-//            }
+            else if (!noResponseExpected)
+            {
+                Console.Write("\n /!\\ ERROR : NO UDS RESPONSE !!\n\n");
+                g_nbErr++;
+            }
         }
 
         // Inverts the bytes of a 32 bits numeric value
