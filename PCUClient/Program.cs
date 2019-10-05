@@ -1322,8 +1322,8 @@ namespace PCUClient
             {
                 Console.Write("\nALL Transmissions succeeded !\n\n");
             }
-//            Console.Write("\n\nPress <Enter> to quit...");
-//            Console.ReadKey(true);
+            Console.Write("\n\nPress <Enter> to quit...");
+            Console.ReadKey(true);
 
             UDSApi.Uninitialize(Channel);
         }
