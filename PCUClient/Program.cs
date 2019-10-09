@@ -1175,12 +1175,14 @@ namespace PCUClient
             TPUDSMsg Message = new TPUDSMsg();
             TPUDSMsg MessageResponse = new TPUDSMsg();
             ManualResetEvent hEvent;
+            uint myEventAsInt;
             bool res;
             // initialization
             Message.NETADDRINFO = N_AI;
             // set event handler
             hEvent = new ManualResetEvent(false);
-            Status = UDSApi.SetValue(Channel, TPUDSParameter.PUDS_PARAM_RECEIVE_EVENT, hEvent.SafeWaitHandle.DangerousGetHandle(), (uint)Marshal.SizeOf(IntPtr.Zero));
+            myEventAsInt = (uint)hEvent.SafeWaitHandle.DangerousGetHandle().ToInt32();
+            Status = UDSApi.SetValue(Channel, TPUDSParameter.PUDS_PARAM_RECEIVE_EVENT, ref myEventAsInt, (uint)Marshal.SizeOf(myEventAsInt));
             if (Status != TPUDSStatus.PUDS_ERROR_OK)
             {
                 Console.Write("Failed to set event, aborting...");
@@ -1233,7 +1235,8 @@ namespace PCUClient
             waitGetch();
 
             // uninitialize event
-            UDSApi.SetValue(Channel, TPUDSParameter.PUDS_PARAM_RECEIVE_EVENT, IntPtr.Zero, (uint)Marshal.SizeOf(IntPtr.Zero));
+            myEventAsInt = 0;
+            UDSApi.SetValue(Channel, TPUDSParameter.PUDS_PARAM_RECEIVE_EVENT, ref myEventAsInt, (uint)Marshal.SizeOf(myEventAsInt));
         }
 
         public static void Main(string[] args)
@@ -1311,7 +1314,7 @@ namespace PCUClient
             // Miscellaneous examples
             testTransferDataBigMessage(Channel, N_AI);
             testTransferDataMultipleFunctionalMessage(Channel, N_AI);
-//            testUsingEvent(Channel, N_AI);
+            testUsingEvent(Channel, N_AI);
 
             // Display a small report
             if (g_nbErr > 0)
